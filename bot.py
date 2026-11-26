@@ -1,157 +1,171 @@
+import os, threading
 import telebot
 from telebot import types
-import threading
 from flask import Flask
-import os
 
-TOKEN = "8826297867:AAF6uROGU82n5ynpQMTfjfLa4uoFoiNPYpg"
+TOKEN = os.environ.get("BOT_TOKEN")
 bot = telebot.TeleBot(TOKEN)
+SITE = "https://kgk.mycollege.kz/"
 
 app = Flask(__name__)
 @app.route('/')
-def home():
-    return "Bot is alive!"
-def run_web():
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+def home(): return "Bot is alive!"
+def run_flask():
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
 
-# ========== ТЕКСТЫ ==========
-ABOUT = """🎓 Карагандинский высший гуманитарный колледж
+user_lang = {}
+waiting_question = set()
 
-КГКП «Карагандинский высший гуманитарный колледж» Управления образования Карагандинской области.
-
-📅 Основан: ноябрь 1976 года
-🏛 Тип: государственный колледж
-📍 Адрес: г. Караганда, пр. Н. Назарбаева, 22
-🎓 Диплом государственного образца
-
-Готовим учителей, воспитателей и педагогов."""
-
-SPECS = """📚 СПЕЦИАЛЬНОСТИ КОЛЛЕДЖА:
-
-1️⃣ 01120100 — Дошкольное воспитание и обучение
-Квалификация: Воспитатель
-
-2️⃣ 01140100 — Педагогика и методика начального обучения
-Квалификация: Учитель начального образования
-
-3️⃣ 01140600 — Педагогика и методика преподавания языка и литературы
-Квалификации: Учитель казахского / русского / иностранного языка
-
-4️⃣ 01130200 — Дополнительное образование
-Квалификация: Педагог дополнительного образования
-
-5️⃣ 01140700 — Информатика
-Квалификация: Учитель информатики
-
-6️⃣ 01140500 — Физическая культура и спорт
-Квалификация: Учитель физкультуры
-
-⏱ Срок обучения:
-- После 9 класса — 3 года 10 мес
-- После 11 класса — 2 года 10 мес
-
-Нажми на специальность ниже 👇"""
-
-SPEC_DETAIL = {
-    "spec_doshk": "🧒 ДОШКОЛЬНОЕ ВОСПИТАНИЕ И ОБУЧЕНИЕ\n\nКод: 01120100\nКвалификация: Воспитатель\n\nЧто будешь уметь:\n• Организовывать игры и занятия для детей 2-6 лет\n• Проводить развивающие занятия\n• Работать с родителями\n\nГде работать: детские сады, центры развития\nЗарплата: от 180 000 до 350 000 ₸",
-    "spec_nachal": "📖 НАЧАЛЬНОЕ ОБРАЗОВАНИЕ\n\nКод: 01140100\nКвалификация: Учитель начального образования\n\nЧто будешь уметь:\n• Вести 1-4 классы\n• Преподавать математику, язык, познание мира\n\nГде работать: школы Караганды, частные школы",
-    "spec_yazyk": "🗣 ЯЗЫК И ЛИТЕРАТУРА\n\nКод: 01140600\nНаправления: казахский, русский, иностранный язык\n\nГде работать: школы, языковые центры, онлайн-школы",
-    "spec_dop": "🎨 ДОПОЛНИТЕЛЬНОЕ ОБРАЗОВАНИЕ\n\nКод: 01130200\nКвалификация: Педагог дополнительного образования\n\nНаправления: ИЗО, музыка, хореография, театр\n\nГде работать: Дворцы школьников, школы искусств",
-    "spec_info": "💻 ИНФОРМАТИКА\n\nКод: 01140700\nКвалификация: Учитель информатики\n\nГде работать: школы, IT-центры, онлайн-образование",
-    "spec_fizra": "🏃 ФИЗКУЛЬТУРА И СПОРТ\n\nКод: 01140500\nКвалификация: Учитель физкультуры\n\nГде работать: школы, спортшколы, фитнес-центры",
+TEXT = {
+    "ru": {
+        "welcome": "🏫✨ КАРАГАНДИНСКИЙ ВЫСШИЙ ГУМАНИТАРНЫЙ КОЛЛЕДЖ ✨🏫\n\n👋 Привет! Я бот КГК\n\n👩‍🏫 Директор: Уатаева Гульмира Султанмуратовна\n📍 г. Караганда, пр. Н. Назарбаева, 22\n📞 +7 (7212) 41-16-92\n📞 56-12-70, 56-05-40\n🏠 Общежитие: есть, бесплатно\n🎓 С 1976 года готовим учителей и воспитателей\n\nВыбери кнопку ниже 👇",
+        "schedule": "📅 РАСПИСАНИЕ\n\nАктуальное расписание — на сайте колледжа 👇\n",
+        "specs": "📚 СПЕЦИАЛЬНОСТИ КГК:\n\n🧒 01120100 — Дошкольное воспитание и обучение\nКвалификация: Воспитатель детского сада\n\n📖 01110100 — Педагогика и методика начального обучения\nКвалификация: Учитель начальных классов\n\n🎨 01130200 — Дополнительное образование\nКвалификация: Педагог доп. образования\n\n🎵 Музыка\n🏃 Физкультура",
+        "admission": "🎓 ПОСТУПЛЕНИЕ\n\n📌 Документы:\n• Аттестат (9 / 11 кл.)\n• Удостоверение личности\n• Фото 3x4 — 4 шт\n• Мед. справка 075-У\n\n📅 Прием: 25 июня — 25 августа\n🎓 Есть ГРАНТ — бесплатно!\n🏠 Общежитие: есть, бесплатно\n📞 +7 (7212) 41-16-92",
+        "pay": "💰 ГРАНТЫ / ОПЛАТА\n\n🎓 Грант: бесплатно + стипендия\n💳 Платно: 250 000 тг\n🏠 Общежитие: бесплатно\n📞 +7 (7212) 41-16-92\n📞 56-12-70, 56-05-40",
+        "contacts": "📞 КОНТАКТЫ КГК\n\n🏫 Карагандинский высший гуманитарный колледж\n👩‍🏫 Директор: Уатаева Гульмира Султанмуратовна\n📍 г. Караганда, пр. Нурсултана Назарбаева, 22\n📞 Приемная: +7 (7212) 41-16-92\n📞 56-12-70, 56-05-40\n🕐 Пн-Пт 09:00 — 18:00\n🚫 Сб-Вс — выходной\n🏠 Общежитие: есть, бесплатно\n\n📱 Instagram: @gumanitaricollegeinkrg\n🎵 TikTok: @gumlife_krg",
+        "news": "📰 НОВОСТИ\n\n🎓 Открыт набор на 2026-2027 учебный год\n🏫 В 2026 году колледжу — 50 ЛЕТ!\n👩‍🏫 Наши выпускники работают в школах и садах Караганды",
+        "site": "🌐 Официальный сайт КГК:\n",
+        "social": "📱 СОЦСЕТИ КГК\n\n📸 Instagram: @gumanitaricollegeinkrg\n🎵 TikTok: @gumlife_krg\n\nПодписывайся, там вся жизнь колледжа! ❤️",
+        "ask": "❓ Напиши свой вопрос одним сообщением!",
+        "ask_sent": "✅ Спасибо! Твой вопрос принят.\n\n📞 Если срочно — позвони нам:\n+7 (7212) 41-16-92\n📍 пр. Назарбаева, 22",
+        "ask_btn": "❓ Задать вопрос",
+        "lang_btn": "🌐 Язык / Тіл",
+        "social_btn": "📱 Соцсети",
+    },
+    "kz": {
+        "welcome": "🏫✨ ҚАРАҒАНДЫ ЖОҒАРЫ ГУМАНИТАРЛЫҚ КОЛЛЕДЖІ ✨🏫\n\n👋 Сәлем! Мен ҚГК ботымын\n\n👩‍🏫 Директор: Уатаева Гульмира Султанмуратовна\n📍 Қарағанды қ., Н. Назарбаев даңғылы, 22\n📞 +7 (7212) 41-16-92\n📞 56-12-70, 56-05-40\n🏠 Жатақхана: бар, тегін\n🎓 1976 жылдан бастап мұғалімдер мен тәрбиешілерді даярлаймыз\n\nТөменнен батырманы таңда 👇",
+        "schedule": "📅 САБАҚ КЕСТЕСІ\n\nӨзекті кесте — колледж сайтында 👇\n",
+        "specs": "📚 ҚГК МАМАНДЫҚТАРЫ:\n\n🧒 01120100 — Мектепке дейінгі тәрбие және оқыту\nБіліктілігі: Балабақша тәрбиешісі\n\n📖 01110100 — Бастауыш оқытудың педагогикасы мен әдістемесі\nБіліктілігі: Бастауыш сынып мұғалімі\n\n🎨 01130200 — Қосымша білім беру\nБіліктілігі: Қосымша білім беру педагогы\n\n🎵 Музыка\n🏃 Дене шынықтыру",
+        "admission": "🎓 ОҚУҒА ТҮСУ\n\n📌 Құжаттар:\n• Аттестат (9 / 11 сынып)\n• Жеке куәлік\n• Фото 3x4 — 4 дана\n• Мед. анықтама 075-У\n\n📅 Қабылдау: 25 маусым — 25 тамыз\n🎓 ГРАНТ бар — тегін!\n🏠 Жатақхана: бар, тегін\n📞 +7 (7212) 41-16-92",
+        "pay": "💰 ГРАНТ / ТӨЛЕМ\n\n🎓 Грант: тегін + шәкіртақы\n💳 Ақылы: 250 000 тг\n🏠 Жатақхана: тегін\n📞 +7 (7212) 41-16-92\n📞 56-12-70, 56-05-40",
+        "contacts": "📞 БАЙЛАНЫС ҚГК\n\n🏫 Қарағанды жоғары гуманитарлық колледжі\n👩‍🏫 Директор: Уатаева Гульмира Султанмуратовна\n📍 Қарағанды қ., Нұрсұлтан Назарбаев даңғылы, 22\n📞 Қабылдау комиссиясы: +7 (7212) 41-16-92\n📞 56-12-70, 56-05-40\n🕐 Дс-Жм 09:00 — 18:00\n🚫 Сб-Жс — демалыс\n🏠 Жатақхана: бар, тегін\n\n📱 Instagram: @gumanitaricollegeinkrg\n🎵 TikTok: @gumlife_krg",
+        "news": "📰 ЖАҢАЛЫҚТАР\n\n🎓 2026-2027 оқу жылына қабылдау ашық\n🏫 2026 жылы колледжге — 50 ЖЫЛ!\n👩‍🏫 Біздің түлектер Қарағандының мектептері мен балабақшаларында жұмыс істейді",
+        "site": "🌐 ҚГК ресми сайты:\n",
+        "social": "📱 ҚГК ӘЛЕУМЕТТІК ЖЕЛІЛЕРІ\n\n📸 Instagram: @gumanitaricollegeinkrg\n🎵 TikTok: @gumlife_krg\n\nЖазыл, колледж өмірі сонда! ❤️",
+        "ask": "❓ Сұрағыңды бір хабарламамен жаз!",
+        "ask_sent": "✅ Рахмет! Сұрағың қабылданды.\n\n📞 Шұғыл болса — хабарлас:\n+7 (7212) 41-16-92\n📍 Назарбаев даңғылы, 22",
+        "ask_btn": "❓ Сұрақ қою",
+        "lang_btn": "🌐 Тіл / Язык",
+        "social_btn": "📱 Әлеуметтік желілер",
+    }
 }
 
-POSTUP = """🎓 ПОСТУПЛЕНИЕ 2026-2027
+def lang_of(uid):
+    return user_lang.get(uid, "ru")
 
-Кто может поступить:
-- После 9 класса
-- После 11 класса
-- После колледжа / вуза
+def main_menu(lang):
+    t = TEXT[lang]
+    m = types.ReplyKeyboardMarkup(resize_keyboard=True, row_width=2)
+    if lang == "ru":
+        m.add(
+            types.KeyboardButton("📅 Расписание"), types.KeyboardButton("📚 Специальности"),
+            types.KeyboardButton("🎓 Поступление"), types.KeyboardButton("💰 Гранты / Оплата"),
+            types.KeyboardButton("📞 Контакты"), types.KeyboardButton("📰 Новости"),
+            types.KeyboardButton("🌐 Сайт колледжа"), types.KeyboardButton(t["social_btn"]),
+            types.KeyboardButton(t["ask_btn"]), types.KeyboardButton(t["lang_btn"]),
+        )
+    else:
+        m.add(
+            types.KeyboardButton("📅 Сабақ кестесі"), types.KeyboardButton("📚 Мамандықтар"),
+            types.KeyboardButton("🎓 Оқуға түсу"), types.KeyboardButton("💰 Грант / Төлем"),
+            types.KeyboardButton("📞 Байланыс"), types.KeyboardButton("📰 Жаңалықтар"),
+            types.KeyboardButton("🌐 Колледж сайты"), types.KeyboardButton(t["social_btn"]),
+            types.KeyboardButton(t["ask_btn"]), types.KeyboardButton(t["lang_btn"]),
+        )
+    return m
 
-Конкурс по среднему баллу аттестата. Без ЕНТ для выпускников 9 класса.
+def site_btn(lang):
+    m = types.InlineKeyboardMarkup()
+    txt = "🌐 Открыть сайт" if lang == "ru" else "🌐 Сайтты ашу"
+    m.add(types.InlineKeyboardButton(txt, url=SITE))
+    return m
 
-📝 ДОКУМЕНТЫ:
-1. Заявление
-2. Аттестат (оригинал) + копия
-3. Удостоверение личности / свидетельство о рождении + копия
-4. Фото 3x4 — 4 шт
-5. Медицинская справка 075-У + флюорография
-6. Папка-скоросшиватель
+def social_btn(lang):
+    m = types.InlineKeyboardMarkup()
+    m.add(types.InlineKeyboardButton("📸 Instagram", url="https://instagram.com/gumanitaricollegeinkrg"))
+    m.add(types.InlineKeyboardButton("🎵 TikTok", url="https://tiktok.com/@gumlife_krg"))
+    m.add(types.InlineKeyboardButton("🌐 Сайт", url=SITE))
+    return m
 
-📍 Подать можно:
-- В приемной: пр. Н. Назарбаева, 22
-- Онлайн через eGov
+def lang_keyboard():
+    m = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    m.add(types.KeyboardButton("🇷🇺 Русский"), types.KeyboardButton("🇰🇿 Қазақша"))
+    return m
 
-📞 Приемная: 8 (7212) 56-12-70"""
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.send_message(message.chat.id, "Выбери язык / Тілді таңда 👇", reply_markup=lang_keyboard())
 
-GRANT = """💰 ГРАНТ И ОПЛАТА
+@bot.message_handler(func=lambda m: m.text in ["🇷🇺 Русский", "🇰🇿 Қазақша", "🌐 Язык / Тіл", "🌐 Тіл / Язык"])
+def set_lang(message):
+    if message.text == "🇷🇺 Русский":
+        user_lang[message.chat.id] = "ru"
+    elif message.text == "🇰🇿 Қазақша":
+        user_lang[message.chat.id] = "kz"
+    else:
+        bot.send_message(message.chat.id, "Выбери язык / Тілді таңда 👇", reply_markup=lang_keyboard())
+        return
+    lang = lang_of(message.chat.id)
+    bot.send_message(message.chat.id, TEXT[lang]["welcome"], reply_markup=main_menu(lang))
 
-🏛 Государственный грант:
-Есть! Выделяется каждый год на педагогические специальности.
-Конкурс — по среднему баллу аттестата.
+@bot.message_handler(func=lambda m: m.text in ["📅 Расписание", "📅 Сабақ кестесі"])
+def schedule(message):
+    lang = lang_of(message.chat.id)
+    bot.send_message(message.chat.id, TEXT[lang]["schedule"] + SITE, reply_markup=site_btn(lang))
 
-💳 Платное обучение:
-💰 Стоимость: 250 000 ₸ в год
-По семестрам: 125 000 ₸ за семестр
+@bot.message_handler(func=lambda m: m.text in ["📚 Специальности", "📚 Мамандықтар"])
+def specs(message):
+    lang = lang_of(message.chat.id)
+    bot.send_message(message.chat.id, TEXT[lang]["specs"], reply_markup=site_btn(lang))
 
-🎓 Стипендия:
-Студентам на гранте выплачивается стипендия. Повышенная — за отличную учебу.
+@bot.message_handler(func=lambda m: m.text in ["🎓 Поступление", "🎓 Оқуға түсу"])
+def admission(message):
+    lang = lang_of(message.chat.id)
+    bot.send_message(message.chat.id, TEXT[lang]["admission"], reply_markup=site_btn(lang))
 
-📞 Приемная: 8 (7212) 56-12-70"""
+@bot.message_handler(func=lambda m: m.text in ["💰 Гранты / Оплата", "💰 Грант / Төлем"])
+def pay(message):
+    lang = lang_of(message.chat.id)
+    bot.send_message(message.chat.id, TEXT[lang]["pay"], reply_markup=site_btn(lang))
 
-DORM = """🏠 ОБЩЕЖИТИЕ И СТУДЖИЗНЬ
+@bot.message_handler(func=lambda m: m.text in ["📞 Контакты", "📞 Байланыс"])
+def contacts(message):
+    lang = lang_of(message.chat.id)
+    bot.send_message(message.chat.id, TEXT[lang]["contacts"], reply_markup=social_btn(lang))
 
-🏠 Общежитие:
-Есть общежитие для иногородних студентов.
-Места в первую очередь:
-- Студентам на гранте
-- Иногородним из области
-- Льготным категориям
+@bot.message_handler(func=lambda m: m.text in ["📰 Новости", "📰 Жаңалықтар"])
+def news(message):
+    lang = lang_of(message.chat.id)
+    bot.send_message(message.chat.id, TEXT[lang]["news"], reply_markup=site_btn(lang))
 
-Заявление на общежитие подается при поступлении.
+@bot.message_handler(func=lambda m: m.text in ["🌐 Сайт колледжа", "🌐 Колледж сайты"])
+def site(message):
+    lang = lang_of(message.chat.id)
+    bot.send_message(message.chat.id, TEXT[lang]["site"] + SITE, reply_markup=site_btn(lang))
 
-🎉 Студенческая жизнь:
-- КВН, дебатный клуб
-- Волонтерство
-- Спортивные секции
-- Творческие кружки"""
+@bot.message_handler(func=lambda m: m.text in ["📱 Соцсети", "📱 Әлеуметтік желілер"])
+def social(message):
+    lang = lang_of(message.chat.id)
+    bot.send_message(message.chat.id, TEXT[lang]["social"], reply_markup=social_btn(lang))
 
-RASP = """📚 РАСПИСАНИЕ И УЧЕБА
+@bot.message_handler(func=lambda m: m.text in ["❓ Задать вопрос", "❓ Сұрақ қою"])
+def ask_start(message):
+    lang = lang_of(message.chat.id)
+    waiting_question.add(message.chat.id)
+    bot.send_message(message.chat.id, TEXT[lang]["ask"])
 
-🕐 Занятия: с 8:00, пары по 90 минут
-📅 Учебная неделя: понедельник — суббота
+@bot.message_handler(func=lambda m: True)
+def other(message):
+    lang = lang_of(message.chat.id)
+    if message.chat.id in waiting_question:
+        waiting_question.remove(message.chat.id)
+        print(f"ВОПРОС от {message.from_user.username}: {message.text}")
+        bot.send_message(message.chat.id, TEXT[lang]["ask_sent"], reply_markup=main_menu(lang))
+    else:
+        bot.send_message(message.chat.id, TEXT[lang]["welcome"], reply_markup=main_menu(lang))
 
-Где смотреть расписание:
-1. На стенде в колледже (1 этаж)
-2. У старосты группы
-3. На сайте: https://kgk.mycollege.kz/
-
-📞 Если не нашел группу — 8 (7212) 56-12-70"""
-
-CONTACT = """☎️ КОНТАКТЫ
-
-🎓 Карагандинский высший гуманитарный колледж
-📍 г. Караганда, пр. Н. Назарбаева, 22
-🌐 Сайт: https://kgk.mycollege.kz/
-
-📞 Приемная комиссия: 8 (7212) 56-12-70
-
-🕐 Режим работы:
-Пн-Пт: 9:00 — 18:00
-Сб: 9:00 — 13:00
-Вс: выходной"""
-
-FAQ = """❓ ЧАСТЫЕ ВОПРОСЫ
-
-1. Нужен ли ЕНТ после 9 класса?
-Нет. Конкурс по среднему баллу аттестата.
-
-2. Можно ли после колледжа в вуз?
-Да! На сокращенную программу, часто сразу на 2 курс.
-
-3. Есть ли практика?
-Да, с 2-3 курса — в школах и садах Караганды.
-
-4. Дают ли отсрочку от армии?
-Да, на время обучения по
+if __name__ == "__main__":
+    threading.Thread(target=run_flask, daemon=True).start()
+    print("Бот запущен...")
+    bot.infinity_polling()
