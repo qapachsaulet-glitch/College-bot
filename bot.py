@@ -1,8 +1,20 @@
 import telebot
 from telebot import types
+import threading
+from flask import Flask
+import os
 
-TOKEN = "8826297867:AAEJGDvsDhT1c_RIAQrdJUdbuAbtOE2Fz_c"
+TOKEN = "8826297867:AAF6uROGU82n5ynpQMTfjfLa4uoFoiNPYpg"
 bot = telebot.TeleBot(TOKEN)
+
+app = Flask(__name__)
+@app.route('/')
+def home():
+    return "Bot is alive!"
+
+def run_web():
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
 
 def menu():
     m = types.InlineKeyboardMarkup(row_width=2)
@@ -37,5 +49,7 @@ def cb(call):
         txt = "Выберите раздел"
     bot.send_message(call.message.chat.id, txt, reply_markup=menu())
 
-print("Бот запущен!")
-bot.polling(none_stop=True, skip_pending=True)
+if __name__ == "__main__":
+    threading.Thread(target=run_web, daemon=True).start()
+    print("Бот запущен!")
+    bot.polling(none_stop=True, skip_pending=True)
