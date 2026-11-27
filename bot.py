@@ -17,7 +17,7 @@ from telegram.ext import (
 # Қарағанды жоғары гуманитарлық колледжі
 # ==========================================
 
-TOKEN = "ВСТАВЬ_СЮДА_ТОКЕН_БОТА"
+TOKEN = "8826297867:AAF6uROGU82n5ynpQMTfjfLa4uoFoiNPYpg"
 
 logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
